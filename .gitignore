@@ -34,3 +34,279 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r,  warning = FALSE, message = FALSE}
+library(car)
+library(broom)
+library(ggm)
+library(mosaic)
+library(gmodels)
+library(dplyr)
+```
+
+## Introduction
+
+The SLID (Survey of Labour and Income Dynamics) dataset is from 1994 wave of the Canadian Survey of Labour and Income Dynamics from the province of Ontario. It has 7425 observations and 5 columns. The first columns is wages which is the composite hourly wage rate from all jobs. The second column is education which is measured in terms of number of years of schooling. The third column is age in years. The fourth is a factor column of sex where it is either male or female. Finally it is a factor column of language where it is either english, french or other language which is the first languages spoken by each individual recorded in the dataset.Unfortunately there is a lot of missing values in this dataset.
+```{r}
+str(SLID)
+```
+
+
+Now to be able to proceed for further data analysis, we need to remove the missing values. After running the code to remove the missing values, we are left with 3987 observations.
+```{r}
+SLID2 <- na.omit(SLID)
+str(SLID2)
+```
+
+Please note from here on we will be using the dataset "SLID2" as our dataset where the 3987 observations are recorded.
+
+# Graphing numerical data
+
+We want to plot numerical data and see if they follow normal patterns
+
+```{r}
+ggplot(SLID2, aes(x = wages)) + geom_histogram(boundary = 100) 
+```
+Wage Distribution: The wages data does not really follow a normal pattern. It is right skewed. We will proceed with caution.
+
+
+```{r}
+ggplot(SLID2, aes(x=age))+ geom_histogram(binwidth = 5, boundary = 100) 
+```
+Age Distribution: The age data follows an almost normal distribution.
+
+```{r}
+ggplot(SLID2, aes(x=education))+ geom_histogram(binwidth = 1, boundary = 100)
+```
+Education Distribution: The education dataset is left skewed so we will proceed with caution on that column as well.
+
+
+
+#Tables and Charts
+
+```{r}
+table(SLID2$sex)
+table(SLID2$language)
+```
+Please note that:
+There are 2001 female employers and 1986 male employers in the dataset so there will no influence in those two categories.
+There are 3244 English, 259 French and 484 other languages in the dataset. Due to the high fequency of Engish as compared to the French and other languages, it will potentially influence the others.
+
+
+
+```{r}
+CrossTable(SLID2$sex, SLID2$language,
+prop.r = FALSE, prop.c = TRUE,
+prop.t = FALSE, prop.chisq = FALSE)
+```
+English : Out of the 3987 people, 3244 speak English as their first language which makes 81.4% of the dataset. Now within the English category, the percentage of female who speak English is 50.4% whereas the percentage of male who speak English is 49.6%.
+French: Out of the 3987 people, 259 people speak French as their first langauge which is 6.5% of the dataset. Within French category, the percentage of is 45.9% whereas the percentage of male is 54.1%.
+Other: 484 people in this dataset speak some other language other than English and French. Other languages make 12.1% of the dataset. Within that category, 50.8% is female and 23.8%.
+
+
+```{r}
+ggplot(SLID2, aes(fill = sex, x = language)) + geom_bar(position = "dodge")
+```
+From the histograom there is high percentage of people of who speak English in both gender, the percentage of people who speak other is a little bit more than people who speak French but they are both significiantly lower than English.
+
+\newpage
+
+#Part 1: Multiple Regression with two numerical explanatory variables
+
+M1 is the first model of corelating wages(numerical response variable) with education (numerical explanatory variable) and age (integer explanatory variable). 
+```{r}
+M1 <- lm(wages ~ education + age, data = SLID2)
+```
+
+```{r}
+M1_glance <- glance(M1)
+M1_tidy <- tidy(M1, conf.int = TRUE)
+M1_tidy
+M1_aug <- augment(M1)
+```
+
+A scatterplot of composite hourly wage rate from all jobs against number of years of schooling colored by age in years is created. There seems to be a positive relationship between the response variable and explanatory variables. I do not know whether it is linear or not.
+```{r, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+ggplot(SLID2, aes( x = education, y = wages)) + geom_point(aes(color = age)) + geom_smooth(method = "lm", aes(color = age))
+```
+
+Residual: As we can see in the residual plot, we see heteroscedasticity which means that the multiple regression is actually not meaningful in this example but we are going to go ahead and interpret the intercept numbers.
+```{r}
+ggplot(M1_aug, aes(y = M1_aug$.std.resid, x = M1_aug$.fitted)) + geom_point()
+```
+From this model, 0.901 composite hourly wage rate from all jobs can be predicted by one year of schooling keeping the age constant.
+From this model, 0.257 composite hourly wage rate from all jobs can be predicted by one year in age keeping the number of years of schooling constant.
+```{r}
+M1_glance <- glance(M1)
+M1_tidy <- tidy(M1, conf.int = TRUE)
+M1_tidy
+M1_aug <- augment(M1)
+```
+
+\newpage
+
+#Part 2: Multiple Regression with one numerical explanatory and one categorical explanatory variables 
+
+M2 is the second part of the model where corelating wages(numerical response data) with education(numerical explanatory variable) and sex(categorical explanatory variable).
+```{r}
+M2 <- lm(wages ~ education + sex, data = SLID2)
+```
+
+```{r}
+M2_glance <- glance(M2)
+M2_tidy <- tidy(M2, conf.int = TRUE)
+M2_tidy
+M2_aug <- augment(M2)
+```
+A scatterplot of composite hourly wage rate from all jobs against number of years of schooling colored by sex is created. There seems to be a positive relationship between the response variable and explanatory variables. I do not know whether it is linear or not.
+```{r, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+ggplot(SLID2, aes( x = education, y = wages)) + geom_point(aes(color = sex)) + geom_smooth(method = "lm", aes(color = sex))
+```
+
+Residual: As we can see in the residual plot, we see heteroscedasticity which means that the multiple regression is actually not meaningful in this example but we are going to go ahead and interpret the intercept numbers.
+```{r}
+ggplot(M2_aug, aes(y = M2_aug$.std.resid, x = M2_aug$.fitted)) + geom_point()
+```
+```{r}
+M2_glance <- glance(M2)
+M2_tidy <- tidy(M2, conf.int = TRUE)
+M2_tidy
+M2_aug <- augment(M2)
+```
+The model predicts that with one year increase in number of years of schooling, the composite hourly wage rate from all jobs increases by 0.807 while holding the gender variable constant.
+The model predicts that within the male category, the composite hourly wage rate from all jobs increases by 3.52 while holding the number of years of schooling.
+
+\newpage
+
+# Part 3: Anova
+
+
+```{r}
+table(SLID2$sex, SLID2$language)
+```
+
+
+
+Calculate cell means:
+```{r}
+wages_means <- SLID2 %>%
+    group_by(sex, language) %>%
+    summarize(mean_wages = mean(wages))
+wages_means
+```
+
+
+
+# Interaction plots
+Make an interaction plot of wages versus language, using different colors to plot the points for the female and male conditions.
+```{r}
+ggplot(SLID2, aes(y = wages, x = language, color = sex)) +
+    geom_point(data = wages_means, aes(x = language, y = mean_wages, color = sex)) + 
+    geom_line(data = wages_means, aes(x = language, y = mean_wages, group = sex))
+```
+
+
+Let's change to a deviance coding scheme.
+```{r}
+contrasts(SLID2$language) <- "contr.sum"
+contrasts(SLID2$sex) <- "contr.sum"
+```
+
+
+
+We calculate the coefficients of the "full" model that includes both `sex` and `language` as explanatory variables, including their interaction
+
+# Full models:
+```{r}
+wages_language_sex_int <- lm(wages ~ language + sex + language:sex, data = SLID2)
+wages_sex_language_int <- lm(wages ~ sex + language + sex:language, data = SLID2)
+```
+
+Check coefficients for full model:
+
+```{r}
+tidy(wages_language_sex_int)
+```
+
+
+# Contrasts
+
+```{r}
+contrasts(SLID2$sex)
+```
+
+```{r}
+contrasts(SLID2$language)
+```
+```{r, tidy=TRUE, tidy.opts=list(width.cutoff=60)}
+Female_English <- 15.58774357 + (-0.08395418) + (-1.79886075) + (0.13233298)
+Female_English
+Female_French <- 15.58774357 + (-0.25190323) + (-1.79886075) + (-0.13958462)
+Female_French
+Female_Other <- 15.58774357 - (-0.08395418) - (-0.25190323) + (-1.79886075) - (0.13233298) - (-0.13958462)
+Female_Other
+Male_English <- 15.58774357 + (-0.08395418) - (-1.79886075) - (0.13233298)
+Male_English
+Male_French <- 15.58774357 + (-0.25190323) - (-1.79886075) - (-0.13958462)
+Male_French
+Male_Other <- 15.58774357 - (-0.08395418) - (-0.25190323) - (-1.79886075) + (0.13233298) + (-0.13958462)
+Male_Other
+```
+From this model, we can predict that a person of the female gender who speaks English gets a composite hourly wage rate of $13.84 from all jobs.
+From this model, we can predict that a person of the female gender speaking French gets a composite wage rate of $13.40 from all jobs.
+From this model, we can predict that a person of the female gender who speak other language other than English and French gets a composite hourly wage of $14.13 from all jobs.
+From this model, we can predict that a person of the male gender who speaks English gets a composite hourly wage rate of $17.17 from all jobs.
+From this model, we can predict that a person of the male gender speaking French gets a composite wage rate of $17.27 from all jobs.
+From this model, we can predict that a person of the male gender who speak other language other than English and French gets a composite hourly wage of $17.72 from all jobs.
+
+
+# Type I and Type II
+
+```{r}
+anova(wages_language_sex_int)
+```
+
+```{r}
+Anova(wages_language_sex_int, type = 2)
+```
+From the Anova table, the only significant variable is sex so the relationship of wages with sex is significant. Language is not significant to be correlated with wages neither is sex and language together.
+It is not a good prediction
+
+\newpage
+
+# Part 4: My part with contextual analysis
+
+As a reseacher, I am interested in the correlation of education and age with the response variable wage within each of the gender.I am going to study this relationship further in this section of the report.
+
+We are going to start again with a dataset where we omit all the NA datapoints and calling it SLID3.
+```{r}
+SLID3 <- na.omit(SLID)
+str(SLID3)
+```
+
+
+Then SLID_female contains all the datapoints for the female sex and SLID_male contains all the datapoints for male sex.
+Note that there are 2001 female datapoints and  1986 male datapoints.
+```{r}
+SLID_female <- subset(SLID3, SLID3$sex == "Female")
+str(SLID_female)
+SLID_male <- subset(SLID3, SLID3$sex == "Male")
+str(SLID_male)
+```
+
+
+
+Now from the scatterplot in the first part, we know that the wages variable has some outliers. Applying a transform to the variables might solve the problem. The log transform will do the work for the wages variable.
+```{r}
+ggplot(SLID_female, aes(x = log(wages))) + geom_histogram(boundary = 100) 
+ggplot(SLID_male, aes(x = log(wages))) + geom_histogram(boundary = 100)
+```
